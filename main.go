@@ -41,7 +41,7 @@ func main() {
 	defer db.Close()
 	log.Println("RocksDB database opened", dbPath)
 
-	eventsChannel := make(chan *proto.QueueEventRequest)
+	eventsChannel := make(chan *proto.QueueEventRequest, 100)
 	go validateChannelEvents(eventsChannel)
 
 	reader := service.NewTimeSinkReader(db, eventsChannel, nil)
@@ -79,11 +79,12 @@ func generateRandomEvent(tss *service.TimeSinkService, rateLimiter *rate.Limiter
 		time.Sleep(r.Delay())
 		var reply *proto.QueueEventReply
 		var event *proto.QueueEventRequest
+		now := time.Now()
 		for i := 0; i < batchSize; i++ {
-			jitter := time.Duration(rand.Float64()) * time.Hour
+			jitter := time.Duration(10 * float64(time.Minute) * (0.001 + rand.Float64()))
 			rand.Read(payload)
 			event = &proto.QueueEventRequest{
-				DeliveryTimestamp: time.Now().Add(jitter).Unix(),
+				DeliveryTimestamp: now.Add(jitter).Unix(),
 				Id:                uuid.New().String(),
 				Payload:           payload,
 			}
@@ -117,7 +118,7 @@ func printPeriodicOffset(reader *service.TimeSinkReader) {
 		rate := float64(counter-last) / float64(time.Now().Unix()-lastTime)
 		last = counter
 		lastTime = time.Now().Unix()
-		log.Println("Reader rate/s", rate, "EventTime", eventTime, "Counter", reader.Counter(), "Offset", reader.Offset())
+		log.Println("Reader rate/s", rate, "Lag", uint64(lastTime) - eventTime, "EventTime", eventTime, "Counter", reader.Counter(), "Offset", reader.Offset())
 	}
 }
 

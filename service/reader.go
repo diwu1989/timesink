@@ -69,7 +69,6 @@ func (tsr *TimeSinkReader) Start(ctx context.Context) {
 			eventTime := binary.BigEndian.Uint64(keyBytes)
 			if eventTime > unixNow {
 				// do not process events in the future, entry at position is not consumed
-				log.Println("not processing future event", eventTime, unixNow)
 				break
 			}
 			// event is valid for processing
