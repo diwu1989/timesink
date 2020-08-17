@@ -9,15 +9,13 @@ import (
 	"github.com/tecbot/gorocksdb"
 )
 
-const cleanerSleepMs = 100
+const cleanerSleepS = 10
 
 type TimeSinkCleaner struct {
 	reader  *TimeSinkReader
 	db      *gorocksdb.DB
 	wo      *gorocksdb.WriteOptions
-	ro      *gorocksdb.ReadOptions
 	offset  []byte
-	counter uint64
 	lag     time.Duration
 }
 
@@ -33,9 +31,7 @@ func NewTimeSinkCleaner(db *gorocksdb.DB, reader *TimeSinkReader, lag time.Durat
 		reader:  reader,
 		db:      db,
 		wo:      gorocksdb.NewDefaultWriteOptions(),
-		ro:      gorocksdb.NewDefaultReadOptions(),
 		offset:  offset,
-		counter: 0,
 		lag:     lag,
 	}
 }
@@ -44,15 +40,9 @@ func (tsc *TimeSinkCleaner) Offset() []byte {
 	return tsc.offset
 }
 
-func (tsc *TimeSinkCleaner) Counter() uint64 {
-	return tsc.counter
-}
-
 func (tsc *TimeSinkCleaner) Start(ctx context.Context) {
+	deleteRangeStart := make([]byte, 0)
 	for {
-		itr := tsc.db.NewIterator(tsc.ro)
-		itr.Seek(tsc.offset)
-
 		// default to safe barrier unix epoch start
 		timeBarrierUnix := uint64(time.Unix(0, 0).Unix())
 		readerOffset := tsc.reader.Offset()
@@ -61,44 +51,20 @@ func (tsc *TimeSinkCleaner) Start(ctx context.Context) {
 			timeBarrierUnix = uint64(time.Unix(int64(readerUnix), 0).Add(-tsc.lag).Unix())
 		}
 		writeBatch := gorocksdb.NewWriteBatch()
-		var lastBatchkey []byte
-		for ; itr.Valid(); itr.Next() {
-			keyBytes := make([]byte, itr.Key().Size())
-			if copy(keyBytes, itr.Key().Data()) != itr.Key().Size() {
-				log.Fatalln("Failed to copy key", itr.Key().Data())
-			}
-			if len(keyBytes) < 8 {
-				log.Fatalln("Invalid key", keyBytes)
-			}
-			eventTime := binary.BigEndian.Uint64(keyBytes)
-			if eventTime > timeBarrierUnix {
-				// do not prune past the time barrier
-				break
-			}
-			writeBatch.Delete(keyBytes)
-			lastBatchkey = keyBytes
-			if writeBatch.Count() > 1000 {
-				err := tsc.db.Write(tsc.wo, writeBatch)
-				if err != nil {
-					log.Fatalln("Failed to write batch", err)
-				}
-				tsc.offset = lastBatchkey
-				tsc.counter += uint64(writeBatch.Count())
-				writeBatch.Clear()
-			}
+		timeBarrierKey := make([]byte, 8)
+		binary.BigEndian.PutUint64(timeBarrierKey, timeBarrierUnix)
+
+		writeBatch.DeleteRange(deleteRangeStart, timeBarrierKey)
+		err := tsc.db.Write(tsc.wo, writeBatch)
+		if err != nil {
+			log.Fatalln("Failed to write batch", err)
 		}
-		if writeBatch.Count() > 0 {
-			err := tsc.db.Write(tsc.wo, writeBatch)
-			if err != nil {
-				log.Fatalln("Failed to write batch", err)
-			}
-			tsc.offset = lastBatchkey
-			tsc.counter += uint64(writeBatch.Count())
-			writeBatch.Clear()
-		}
-		itr.Close()
+		tsc.offset = timeBarrierKey
+		writeBatch.Clear()
+		deleteRangeStart = timeBarrierKey
+
 		select {
-		case <-time.After(cleanerSleepMs * time.Millisecond):
+		case <-time.After(cleanerSleepS * time.Second):
 			// Sleep a little bit before checking again
 			continue
 		case <-ctx.Done():

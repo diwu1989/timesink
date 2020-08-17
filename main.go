@@ -112,7 +112,6 @@ func generateRandomEvent(tss *service.TimeSinkService, rateLimiter *rate.Limiter
 }
 
 func printPeriodicCleanerOffset(cleaner *service.TimeSinkCleaner) {
-	last := uint64(0)
 	lastTime := time.Now().Unix()
 	for {
 		time.Sleep(5 * time.Second)
@@ -121,11 +120,11 @@ func printPeriodicCleanerOffset(cleaner *service.TimeSinkCleaner) {
 		if len(offset) >= 8 {
 			eventTime = binary.BigEndian.Uint64(offset)
 		}
-		counter := cleaner.Counter()
-		rate := float64(counter-last) / float64(time.Now().Unix()-lastTime)
-		last = counter
 		lastTime = time.Now().Unix()
-		log.Println("Cleaner rate/s", rate, "Lag", uint64(lastTime)-eventTime, "EventTime", eventTime, "Counter", cleaner.Counter(), "Offset", cleaner.Offset())
+		log.Println(
+			"Cleaner Lag", uint64(lastTime)-eventTime,
+			"EventTime", eventTime,
+			"Offset", cleaner.Offset())
 	}
 }
 
@@ -143,7 +142,12 @@ func printPeriodicReaderOffset(reader *service.TimeSinkReader) {
 		rate := float64(counter-last) / float64(time.Now().Unix()-lastTime)
 		last = counter
 		lastTime = time.Now().Unix()
-		log.Println("Reader rate/s", rate, "Lag", uint64(lastTime)-eventTime, "EventTime", eventTime, "Counter", reader.Counter(), "Offset", reader.Offset())
+		log.Println(
+			"Reader rate/s", rate,
+			"Lag", uint64(lastTime)-eventTime,
+			"EventTime", eventTime,
+			"Counter", reader.Counter(),
+			"Offset", reader.Offset())
 	}
 }
 
