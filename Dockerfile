@@ -8,6 +8,7 @@ RUN cd /src && \
 	apt autoremove -y && \
 	apt clean && \
 	rm -rf /var/lib/apt/lists/* && \
+	rm -rf ~/.cache && \
 	cp timesink /timesink && \
 	rm -rf /src /go
 EXPOSE 8000
