@@ -28,7 +28,7 @@ Message delivery is at least once.
 
 Performance benchmark:
 Reader can do about 40k/s on a low-end GCP instance with 2 vCPU cores and SSD storage
-Cleaner can go much faster because it uses write batches
+Cleaner can go much faster because it uses write batches, need to change this to use `DeleteRange` instead of individual deletes.
 Service RPC performs similar to reader, can be much faster if reading from Kafka in batches and use write batch to persist
 
 To build and run this:
