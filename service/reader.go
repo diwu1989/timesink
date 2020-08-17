@@ -4,17 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"github.com/tecbot/gorocksdb"
 	"log"
 	"time"
+
 	"timesink/proto"
+
+	"github.com/tecbot/gorocksdb"
 )
 
 const readerSleepMs = 100
 
 type TimeSinkReader struct {
 	db      *gorocksdb.DB
-	wo      *gorocksdb.WriteOptions
 	ro      *gorocksdb.ReadOptions
 	output  chan *proto.QueueEventRequest
 	offset  []byte
@@ -27,7 +28,6 @@ func NewTimeSinkReader(db *gorocksdb.DB, output chan *proto.QueueEventRequest, o
 	}
 	return TimeSinkReader{
 		db:      db,
-		wo:      gorocksdb.NewDefaultWriteOptions(),
 		ro:      gorocksdb.NewDefaultReadOptions(),
 		output:  output,
 		offset:  offset,
@@ -61,7 +61,6 @@ func (tsr *TimeSinkReader) Start(ctx context.Context) {
 			if copy(keyBytes, itr.Key().Data()) != itr.Key().Size() {
 				log.Fatalln("Failed to copy key", itr.Key().Data())
 			}
-			itr.Key().Free()
 			if len(keyBytes) < 8 {
 				log.Fatalln("Invalid key", keyBytes)
 			}
@@ -73,7 +72,6 @@ func (tsr *TimeSinkReader) Start(ctx context.Context) {
 			}
 			// event is valid for processing
 			payload := make([]byte, itr.Value().Size())
-			itr.Value().Free()
 			if copy(payload, itr.Value().Data()) != itr.Value().Size() {
 				log.Fatalln("Failed to copy value", itr.Value().Data())
 			}
