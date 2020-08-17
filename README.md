@@ -1,13 +1,13 @@
 # timesink
 GRPC service that takes in a future event as:
-{code}
+```
 # Event uuid
 string id
 # Unix timestamp in seconds for the future delivery date
 int64 delivery_timestamp
 # arbitrary payload, could be JSON or other encoded data
 bytes payload 
-{code}
+```
 
 The service will store the event into RocksDB as events are queued for future delivery.
 There's a reader that is continuously reading events during real time as now() crosses delivery timestamp.
