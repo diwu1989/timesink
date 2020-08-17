@@ -30,3 +30,11 @@ Performance benchmark:
 Reader can do about 40k/s on a low-end GCP instance with 2 vCPU cores and SSD storage
 Cleaner can go much faster because it uses write batches
 Service RPC performs similar to reader, can be much faster if reading from Kafka in batches and use write batch to persist
+
+To build this:
+```
+go build
+./timesink
+```
+Rocksdb is stored at /tmp/timesinkdb/
+Clean this directory if you want to wipe all queued events
