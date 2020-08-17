@@ -112,19 +112,14 @@ func generateRandomEvent(tss *service.TimeSinkService, rateLimiter *rate.Limiter
 }
 
 func printPeriodicCleanerOffset(cleaner *service.TimeSinkCleaner) {
-	lastTime := time.Now().Unix()
 	for {
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		offset := cleaner.Offset()
 		eventTime := uint64(0)
 		if len(offset) >= 8 {
 			eventTime = binary.BigEndian.Uint64(offset)
 		}
-		lastTime = time.Now().Unix()
-		log.Println(
-			"Cleaner Lag", uint64(lastTime)-eventTime,
-			"EventTime", eventTime,
-			"Offset", cleaner.Offset())
+		log.Println("Cleaner offset", cleaner.Offset(), "EventTime", eventTime)
 	}
 }
 

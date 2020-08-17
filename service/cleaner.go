@@ -50,17 +50,17 @@ func (tsc *TimeSinkCleaner) Start(ctx context.Context) {
 			readerUnix := binary.BigEndian.Uint64(readerOffset)
 			timeBarrierUnix = uint64(time.Unix(int64(readerUnix), 0).Add(-tsc.lag).Unix())
 		}
-		writeBatch := gorocksdb.NewWriteBatch()
 		timeBarrierKey := make([]byte, 8)
 		binary.BigEndian.PutUint64(timeBarrierKey, timeBarrierUnix)
 
+		writeBatch := gorocksdb.NewWriteBatch()
 		writeBatch.DeleteRange(deleteRangeStart, timeBarrierKey)
 		err := tsc.db.Write(tsc.wo, writeBatch)
 		if err != nil {
 			log.Fatalln("Failed to write batch", err)
 		}
-		tsc.offset = timeBarrierKey
 		writeBatch.Clear()
+		tsc.offset = timeBarrierKey
 		deleteRangeStart = timeBarrierKey
 
 		select {
