@@ -39,4 +39,4 @@ go build
 Rocksdb is stored at /tmp/timesinkdb/
 Clean this directory if you want to wipe all queued events
 
-If `go build` complains about rocksdb, then just grab the source of RocksDB 5.18.4, make shared_lib, and make install it.
+If `go build` complains about rocksdb, then just grab the source of RocksDB 5.18.4, `make shared_lib`, and `make install` it.
