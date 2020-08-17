@@ -65,7 +65,8 @@ func main() {
 	// Generate 100k events per second
 	reqsPerSecond := 100000
 	rateLimiter := rate.NewLimiter(rate.Every(time.Second/time.Duration(reqsPerSecond)), 4*reqsPerSecond)
-	jitterDuration := 24 * time.Second
+	// Generate events up to 1 hour into the future
+	jitterDuration := time.Hour
 	go generateRandomEvent(&instance, rateLimiter, jitterDuration)
 
 	now := time.Now()
@@ -78,9 +79,8 @@ func generateRandomEvent(tss *service.TimeSinkService, rateLimiter *rate.Limiter
 	payload := make([]byte, payloadSize)
 	ctx := context.Background()
 	generated := 0
-	batchSize := 1000
 	for {
-		r := rateLimiter.ReserveN(time.Now(), batchSize)
+		r := rateLimiter.Reserve()
 		if !r.OK() {
 			time.Sleep(time.Millisecond)
 			continue
@@ -89,22 +89,20 @@ func generateRandomEvent(tss *service.TimeSinkService, rateLimiter *rate.Limiter
 		var reply *proto.QueueEventReply
 		var event *proto.QueueEventRequest
 		now := time.Now()
-		for i := 0; i < batchSize; i++ {
-			jitter := time.Duration(float64(jitterRange) * (0.00000001 + rand.Float64()))
-			rand.Read(payload)
-			event = &proto.QueueEventRequest{
-				DeliveryTimestamp: now.Add(jitter).Unix(),
-				Id:                uuid.New().String(),
-				Payload:           payload,
-			}
-			replyQ, err := tss.QueueEvent(ctx, event)
-			reply = replyQ
-			if err != nil {
-				log.Fatalln(err)
-			}
+		jitter := time.Duration(float64(jitterRange) * (0.00000001 + rand.Float64()))
+		rand.Read(payload)
+		event = &proto.QueueEventRequest{
+			DeliveryTimestamp: now.Add(jitter).Unix(),
+			Id:                uuid.New().String(),
+			Payload:           payload,
 		}
-		generated += batchSize
-		if generated%(500*batchSize) == 0 {
+		replyQ, err := tss.QueueEvent(ctx, event)
+		reply = replyQ
+		if err != nil {
+			log.Fatalln(err)
+		}
+		generated++
+		if generated%(100000) == 0 {
 			log.Println(
 				"Generated", generated,
 				"EventTime", event.DeliveryTimestamp,
