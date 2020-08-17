@@ -31,7 +31,7 @@ Reader can do about 40k/s on a low-end GCP instance with 2 vCPU cores and SSD st
 Cleaner can go much faster because it uses write batches
 Service RPC performs similar to reader, can be much faster if reading from Kafka in batches and use write batch to persist
 
-To build this:
+To build and run this:
 ```
 go build
 ./timesink
